@@ -93,6 +93,7 @@ namespace vMenuClient.menus
                         {
                             // Get the vehicle make name using the "GetMakeNameFromVehicleModel()" function.
                             string makeName = GetMakeNameFromVehicleModel((uint)GetHashKey(model));
+
                             // Check if the makeName is null or empty, and if so, put the model in the "Unknown" category.
                             if (string.IsNullOrEmpty(makeName))
                             {

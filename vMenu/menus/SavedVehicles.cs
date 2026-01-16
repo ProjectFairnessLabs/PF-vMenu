@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -48,7 +48,8 @@ namespace vMenuClient.menus
                 {
                     if (Game.PlayerPed.IsInVehicle())
                     {
-                        SaveVehicle();
+                        // Call the helper method
+                        SaveVehicleAsync();
                     }
                     else
                     {
@@ -167,7 +168,8 @@ namespace vMenuClient.menus
                         {
                             replaceButtonPressedCount = 0;
                             item.Label = "";
-                            SaveVehicle(currentlySelectedVehicle.Key.Substring(4));
+                            await SaveVehicle(currentlySelectedVehicle.Key.Substring(4));
+                            UpdateMenuAvailableCategories();
                             selectedVehicleMenu.GoBack();
                             Notify.Success("Your saved vehicle has been replaced with your current vehicle.");
                         }
@@ -385,8 +387,30 @@ namespace vMenuClient.menus
             if (menu == null)
             {
                 CreateMenu();
+                UpdateMenuAvailableCategories();
             }
             return menu;
+        }
+
+        /// <summary>
+        /// Helper method to save vehicle asynchronously and refresh the menu
+        /// </summary>
+        private async void SaveVehicleAsync()
+        {
+            try
+            {
+                CitizenFX.Core.Debug.WriteLine("[vMenu] SaveVehicleAsync called from menu");
+                await SaveVehicle();
+                CitizenFX.Core.Debug.WriteLine("[vMenu] SaveVehicle completed, refreshing menu...");
+                UpdateMenuAvailableCategories();
+                CitizenFX.Core.Debug.WriteLine("[vMenu] Menu refreshed");
+            }
+            catch (Exception ex)
+            {
+                CitizenFX.Core.Debug.WriteLine($"[vMenu] ERROR in SaveVehicleAsync: {ex.Message}");
+                CitizenFX.Core.Debug.WriteLine($"[vMenu] Stack: {ex.StackTrace}");
+                Notify.Error($"Save failed: {ex.Message}");
+            }
         }
     }
 }

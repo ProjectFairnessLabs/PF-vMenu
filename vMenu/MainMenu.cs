@@ -836,7 +836,7 @@ namespace vMenuClient
             // Add the vehicle options Menu.
 
             var worldSubmenuBtn = new MenuItem("World Related Options", "Open this submenu for world related subcategories.") { Label = "→→→" };
-            if (IsAllowed(Permission.CTWMenu))
+            if (GetSettingsBool(Setting.vmenu_enable_client_time_weather))
             {
                 Menu.AddMenuItem(worldSubmenuBtn);
                 {

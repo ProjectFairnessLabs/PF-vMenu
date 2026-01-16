@@ -1234,28 +1234,44 @@ namespace vMenuClient
                 speed = GetEntitySpeedVector(tmpOldVehicle.Handle, true).Y; // get forward/backward speed only
                 rpm = tmpOldVehicle.CurrentRPM;
             }
-            string jsonData = LoadResourceFile(GetCurrentResourceName(), "config/addons.json") ?? "{}";
-            var addons = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(jsonData);
-
-
-            foreach (string addon in addons["vehicleblacklist"])
+            try
             {
-                uint vehicleblackist = (uint)GetHashKey(addon);
-                if ((vehicleHash == vehicleblackist) && !IsAllowed(Permission.VOVehiclesBlacklist))
+                var jsonData = LoadResourceFile(GetCurrentResourceName(), "config/addons.json") ?? "{}";
+                var addons = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(jsonData);
+
+                if (addons != null)
+                {
+                    if (addons.ContainsKey("vehicleblacklist"))
                     {
-                        Notify.Alert("You are not allowed to spawn this vehicle, because it is restricted.");
-                        return 0;     
+                        foreach (var addon in addons["vehicleblacklist"])
+                        {
+                            var vehicleblackist = (uint)GetHashKey(addon);
+                            if ((vehicleHash == vehicleblackist) && !IsAllowed(Permission.VOVehiclesBlacklist))
+                            {
+                                Notify.Alert("You are not allowed to spawn this vehicle, because it is restricted.");
+                                return 0;
+                            }
+                        }
+                    }
+
+                    if (addons.ContainsKey("disablefromdefaultlist"))
+                    {
+                        foreach (var addon in addons["disablefromdefaultlist"])
+                        {
+                            var removedefaultlist = (uint)GetHashKey(addon.ToLower());
+                            if ((vehicleHash == removedefaultlist) && !IsAllowed(Permission.VODisableFromDefaultList))
+                            {
+                                Notify.Alert("You are not allowed to spawn this vehicle, because it is restricted.");
+                                return 0;
+                            }
+                        }
                     }
                 }
-            foreach (string addon in addons["disablefromdefaultlist"])
+            }
+            catch (Exception ex)
             {
-                uint removedefaultlist = (uint)GetHashKey(addon.ToLower());
-                if ((vehicleHash == removedefaultlist) && !IsAllowed(Permission.VODisableFromDefaultList))
-                    {
-                        Notify.Alert("You are not allowed to spawn this vehicle, because it is restricted.");
-                        return 0;     
-                    }
-                }
+                Debug.WriteLine($"[vMenu] Error checking vehicle restrictions: {ex.Message}");
+            }
             var modelClass = GetVehicleClassFromName(vehicleHash);
             if (!VehicleSpawner.allowedCategories[modelClass])
             {
@@ -1540,6 +1556,7 @@ namespace vMenuClient
             public bool bulletProofTires;
             public int headlightColor;
             public float enveffScale;
+            public string Category;
         };
         #endregion
 
@@ -1547,37 +1564,80 @@ namespace vMenuClient
         /// <summary>
         /// Saves the vehicle the player is currently in to the client's kvp storage.
         /// </summary>
-        public static async void SaveVehicle(string updateExistingSavedVehicleName = null)
+        public static async Task SaveVehicle(string updateExistingSavedVehicleName = null, string category = null)
         {
-            // Only continue if the player is in a vehicle.
-            if (Game.PlayerPed.IsInVehicle())
+            try
             {
-                // Get the vehicle.
-                var veh = GetVehicle();
-                // Make sure the entity is actually a vehicle and it still exists, and it's not dead.
-                if (veh != null && veh.Exists() && !veh.IsDead && veh.IsDriveable)
+                Debug.WriteLine("[vMenu] SaveVehicle called");
+                
+                // Only continue if the player is in a vehicle.
+                if (Game.PlayerPed.IsInVehicle())
                 {
-                    #region new saving method
-                    var mods = new Dictionary<int, int>();
-
-                    foreach (var mod in veh.Mods.GetAllMods())
+                    Debug.WriteLine("[vMenu] Player is in vehicle");
+                    
+                    // Get the vehicle.
+                    var veh = GetVehicle();
+                    // Make sure the entity is actually a vehicle and it still exists, and it's not dead.
+                    if (veh != null && veh.Exists() && !veh.IsDead && veh.IsDriveable)
                     {
-                        mods.Add((int)mod.ModType, mod.Index);
-                    }
+                        Debug.WriteLine("[vMenu] Vehicle validation passed");
+                        
+                        #region new saving method
+                        Debug.WriteLine("[vMenu] Collecting vehicle mods...");
+                        var mods = new Dictionary<int, int>();
 
-                    #region colors
-                    var colors = new Dictionary<string, int>();
-                    var primaryColor = 0;
-                    var primaryColorred = 0;
-                    var primaryColorgreen = 0;
-                    var primaryColorblue = 0;
-                    var primaryFinish = await GetMaterial.GetPrimaryMaterialAsync(veh.Handle);
+                        foreach (var mod in veh.Mods.GetAllMods())
+                        {
+                            mods.Add((int)mod.ModType, mod.Index);
+                        }
+                        Debug.WriteLine($"[vMenu] Collected {mods.Count} mods");
 
-                    var secondaryColor = 0;
-                    var secondaryColorred = 0;
-                    var secondaryColorgreen = 0;
-                    var secondaryColorblue = 0;
-                    var secondaryFinish = await GetMaterial.GetSecondaryMaterialAsync(veh.Handle);
+                        #region colors
+                        Debug.WriteLine("[vMenu] Starting color collection...");
+                        var colors = new Dictionary<string, int>();
+                        var primaryColor = 0;
+                        var primaryColorred = 0;
+                        var primaryColorgreen = 0;
+                        var primaryColorblue = 0;
+                        
+                        // TEMPORARY FIX: Disable GetMaterial calls as they hang the save process
+                        // Using default value of 0 for material/finish
+                        Debug.WriteLine("[vMenu] Using default material values (GetMaterial disabled to prevent hanging)");
+                        var primaryFinish = 0;
+                        var secondaryFinish = 0;
+                        
+                        // ORIGINAL CODE (COMMENTED OUT DUE TO HANGING):
+                        // Debug.WriteLine("[vMenu] Getting primary material (this may hang if GetMaterial has issues)...");
+                        // var primaryFinish = 0;
+                        // try
+                        // {
+                        //     primaryFinish = await GetMaterial.GetPrimaryMaterialAsync(veh.Handle);
+                        //     Debug.WriteLine($"[vMenu] Primary material: {primaryFinish}");
+                        // }
+                        // catch (Exception matEx)
+                        // {
+                        //     Debug.WriteLine($"[vMenu] WARNING: GetPrimaryMaterial failed: {matEx.Message}");
+                        //     primaryFinish = 0; // fallback to default
+                        // }
+
+                        var secondaryColor = 0;
+                        var secondaryColorred = 0;
+                        var secondaryColorgreen = 0;
+                        var secondaryColorblue = 0;
+                        
+                        // ORIGINAL CODE (COMMENTED OUT DUE TO HANGING):
+                        // Debug.WriteLine("[vMenu] Getting secondary material...");
+                        // var secondaryFinish = 0;
+                        // try
+                        // {
+                        //     secondaryFinish = await GetMaterial.GetSecondaryMaterialAsync(veh.Handle);
+                        //     Debug.WriteLine($"[vMenu] Secondary material: {secondaryFinish}");
+                        // }
+                        // catch (Exception matEx)
+                        // {
+                        //     Debug.WriteLine($"[vMenu] WARNING: GetSecondaryMaterial failed: {matEx.Message}");
+                        //     secondaryFinish = 0; // fallback to default
+                        // }
 
 
                     var pearlescentColor = 0;
@@ -1657,8 +1717,10 @@ namespace vMenuClient
                     colors.Add("tyresmokeR", tyresmokeR);
                     colors.Add("tyresmokeG", tyresmokeG);
                     colors.Add("tyresmokeB", tyresmokeB);
+                    Debug.WriteLine("[vMenu] Color collection completed");
                     #endregion
 
+                    Debug.WriteLine("[vMenu] Collecting vehicle extras...");
                     var extras = new Dictionary<int, bool>();
                     for (var i = 0; i < 20; i++)
                     {
@@ -1667,7 +1729,9 @@ namespace vMenuClient
                             extras.Add(i, veh.IsExtraOn(i));
                         }
                     }
+                    Debug.WriteLine($"[vMenu] Collected {extras.Count} extras");
 
+                    Debug.WriteLine("[vMenu] Creating VehicleInfo struct...");
                     var vi = new VehicleInfo()
                     {
                         colors = colors,
@@ -1691,34 +1755,44 @@ namespace vMenuClient
                         xenonHeadlights = IsToggleModOn(veh.Handle, 22),
                         bulletProofTires = !veh.CanTiresBurst,
                         headlightColor = VehicleOptions.GetHeadlightsColorForVehicle(veh),
-                        enveffScale = GetVehicleEnveffScale(veh.Handle)
+                        enveffScale = GetVehicleEnveffScale(veh.Handle),
+                        Category = category
                     };
+                    Debug.WriteLine("[vMenu] VehicleInfo struct created successfully");
 
                     #endregion
 
+                    Debug.WriteLine("[vMenu] Entering save name prompt section...");
                     if (updateExistingSavedVehicleName == null)
                     {
+                        Debug.WriteLine("[vMenu] About to call GetUserInput for save name...");
                         // Ask the user for a save name (will be displayed to the user and will be used as unique identifier for this vehicle)
                         var saveName = await GetUserInput(windowTitle: "Enter a save name", maxInputLength: 30);
+                        Debug.WriteLine($"[vMenu] GetUserInput returned: {saveName ?? "NULL"}");
+                        
                         // If the name is not invalid.
                         if (!string.IsNullOrEmpty(saveName))
                         {
+                            Debug.WriteLine("[vMenu] Save name is valid, attempting to save...");
                             // Save everything from the dictionary into the client's kvp storage.
                             // If the save was successfull:
                             if (StorageManager.SaveVehicleInfo("veh_" + saveName, vi, false))
                             {
                                 Notify.Success($"Vehicle {saveName} saved.");
+                                Debug.WriteLine($"[vMenu] Vehicle saved successfully as: veh_{saveName}");
                             }
                             // If the save was not successfull:
                             else
                             {
                                 Notify.Error(CommonErrors.SaveNameAlreadyExists, placeholderValue: "(" + saveName + ")");
+                                Debug.WriteLine($"[vMenu] Save failed - name already exists: {saveName}");
                             }
                         }
                         // The user did not enter a valid name to use as a save name for this vehicle.
                         else
                         {
                             Notify.Error(CommonErrors.InvalidSaveName);
+                            Debug.WriteLine("[vMenu] Save cancelled - invalid/empty name");
                         }
                     }
                     // We need to update an existing slot.
@@ -1745,7 +1819,13 @@ namespace vMenuClient
             {
                 MainMenu.SavedVehiclesMenu?.UpdateMenuAvailableCategories();
             }
-
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[vMenu] ERROR in SaveVehicle: {ex.Message}");
+                Debug.WriteLine($"[vMenu] Stack trace: {ex.StackTrace}");
+                Notify.Error($"Failed to save vehicle: {ex.Message}");
+            }
         }
         #endregion
 
@@ -1794,10 +1874,9 @@ namespace vMenuClient
                 // Get the kvp string key.
                 var vehString = FindKvp(findHandle);
 
-                // If it exists then the key to the list.
+                // If it exists then add the key to the list.
                 if (vehString is not "" and not null and not "NULL")
                 {
-                    //Debug.WriteLine(vehString);
                     savedVehicleNames.Add(vehString);
                 }
                 // Otherwise stop.
@@ -1809,27 +1888,23 @@ namespace vMenuClient
             }
 
             // Create a Dictionary to store all vehicle information in.
-            //var vehiclesList = new Dictionary<string, Dictionary<string, string>>();
             var vehiclesList = new Dictionary<string, VehicleInfo>();
+            
             // Loop through all save names (keys) from the list above, convert the string into a dictionary 
             // and add it to the dictionary above, with the vehicle save name as the key.
             foreach (var saveName in savedVehicleNames)
             {
-            string jsonData = LoadResourceFile(GetCurrentResourceName(), "config/addons.json") ?? "{}";
-            var addons = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(jsonData); 
-            var vehicleblacklist = new List<string>();
-            foreach (string addon in addons["vehicleblacklist"])
-            {
-                    uint veh = (uint)GetHashKey(addon);
-                    vehicleblacklist.Add(veh.ToString());
+                try
+                {
+                    var vehicleInfo = StorageManager.GetSavedVehicleInfo(saveName);
+                    vehiclesList.Add(saveName, vehicleInfo);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[vMenu] Error loading saved vehicle '{saveName}': {ex.Message}");
+                }
             }
-                if (!vehicleblacklist.Any(x => x == StorageManager.GetSavedVehicleInfo(saveName).model.ToString() && !IsAllowed(Permission.VOVehiclesBlacklist)) )
-                    {
-
-                        vehiclesList.Add(saveName, StorageManager.GetSavedVehicleInfo(saveName));
-                        
-                    }
-                }                                
+            
             // Return the vehicle dictionary containing all vehicle save names (keys) linked to the correct vehicle
             // including all vehicle mods/customization parts.
             return vehiclesList;
@@ -1907,13 +1982,18 @@ namespace vMenuClient
         /// <returns></returns>
         public static async Task<string> GetUserInput(string windowTitle, string defaultText, int maxInputLength)
         {
+            Debug.WriteLine($"[vMenu] GetUserInput called with title: {windowTitle}");
+            
             // Create the window title string.
             var spacer = "\t";
             AddTextEntry($"{GetCurrentResourceName().ToUpper()}_WINDOW_TITLE", $"{windowTitle ?? "Enter"}:{spacer}(MAX {maxInputLength} Characters)");
 
             // Display the input box.
+            Debug.WriteLine("[vMenu] Displaying onscreen keyboard...");
             DisplayOnscreenKeyboard(1, $"{GetCurrentResourceName().ToUpper()}_WINDOW_TITLE", "", defaultText ?? "", "", "", "", maxInputLength);
             await Delay(0);
+            
+            Debug.WriteLine("[vMenu] Waiting for keyboard input...");
             // Wait for a result.
             while (true)
             {
@@ -1923,9 +2003,12 @@ namespace vMenuClient
                 {
                     case 3: // not displaying input field anymore somehow
                     case 2: // cancelled
+                        Debug.WriteLine($"[vMenu] Keyboard cancelled or closed (status: {keyboardStatus})");
                         return null;
                     case 1: // finished editing
-                        return GetOnscreenKeyboardResult();
+                        var result = GetOnscreenKeyboardResult();
+                        Debug.WriteLine($"[vMenu] Keyboard finished, result: {result}");
+                        return result;
                     default:
                         await Delay(0);
                         break;

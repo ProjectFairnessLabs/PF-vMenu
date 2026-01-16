@@ -188,152 +188,152 @@ namespace vMenuServer
         /// </summary>
         public MainServer()
         {
-            var gamebuild = 2372;
-            var gamebuildcurr = GetConvarInt("sv_enforcegamebuild", 0);
-            // build check
-            if (gamebuildcurr < gamebuild)
+        var gamebuild = 2372;
+        var gamebuildcurr = GetConvarInt("sv_enforcegamebuild", 0);
+        // build check
+        if (gamebuildcurr < gamebuild)
+        {
+            var InvalidGameBuild = new Exception($"\r\n\r\n^1 Wrong game build! Your server's game build is v{gamebuildcurr}! You need atleast the v{gamebuild} or later game builds to use PF-vMenu. Tutorial on how to change this: https://forum.cfx.re/t/tutorial-forcing-gamebuilds-on-fivem/4784977\r\n\r\n\r\n^7");
+            try
             {
-                var InvalidGameBuild = new Exception($"\r\n\r\n^1 Wrong game build! Your server's game build is v{gamebuildcurr}! You need atleast the v{gamebuild} or later game builds to use PF-vMenu. Tutorial on how to change this: https://forum.cfx.re/t/tutorial-forcing-gamebuilds-on-fivem/4784977\r\n\r\n\r\n^7");
-                try
+                throw InvalidGameBuild;
+            }
+            catch (Exception e)
+            {
+                for (int i = 0; i < 5; i++) 
                 {
-                    throw InvalidGameBuild;
+                    Debug.Write(e.Message);
+                    System.Threading.Thread.Sleep(5000);
+                
+                }    
+                return;               
+            }
+        }
+        else
+        {
+            Debug.WriteLine($"Game build is: v{gamebuildcurr}");
+            // id check
+            if (GetSettingsString(Setting.vmenu_individual_server_id) == "" || GetSettingsString(Setting.vmenu_individual_server_id) == null || GetSettingsString(Setting.vmenu_individual_server_id) == "null")
+            {
+                    var InvalidServerId = new Exception("\r\n\r\n^1 Invalid Server ID or Server ID not found! Change or add 'setr vmenu_individual_server_id' to your server.cfg or permissions.cfg. \r\n\r\n\r\n^7");
+                    try
+                {
+                    throw InvalidServerId;
                 }
                 catch (Exception e)
                 {
-                    for (int i = 0; i < 5; i++)
+                    for (int i = 0; i < 5; i++) 
                     {
                         Debug.Write(e.Message);
                         System.Threading.Thread.Sleep(5000);
-
-                    }
-                    return;
+                    
+                    }    
+                    return;               
                 }
             }
             else
             {
-                Debug.WriteLine($"Game build is: v{gamebuildcurr}");
-                // id check
-                if (GetSettingsString(Setting.vmenu_individual_server_id) == "" || GetSettingsString(Setting.vmenu_individual_server_id) == null || GetSettingsString(Setting.vmenu_individual_server_id) == "null")
+            Debug.WriteLine($"Server ID: {GetSettingsString(Setting.vmenu_individual_server_id)}");
+            if (GetCurrentResourceName() != "vMenu")
+            {
+                var InvalidNameException = new Exception("\r\n\r\n^1[vMenu] INSTALLATION ERROR!\r\nThe name of the resource is not valid. " +
+                    "Please change the folder name from '^3" + GetCurrentResourceName() + "^1' to '^2vMenu^1' (case sensitive) instead!\r\n\r\n\r\n^7");
+                try
                 {
-                    var InvalidServerId = new Exception("\r\n\r\n^1 Invalid Server ID or Server ID not found! Change or add 'setr vmenu_individual_server_id' to your server.cfg or permissions.cfg. \r\n\r\n\r\n^7");
-                    try
-                    {
-                        throw InvalidServerId;
-                    }
-                    catch (Exception e)
-                    {
-                        for (int i = 0; i < 5; i++)
-                        {
-                            Debug.Write(e.Message);
-                            System.Threading.Thread.Sleep(5000);
-
-                        }
-                        return;
-                    }
+                    throw InvalidNameException;
                 }
-                else
+                catch (Exception e)
                 {
-                    Debug.WriteLine($"Server ID: {GetSettingsString(Setting.vmenu_individual_server_id)}");
-                    if (GetCurrentResourceName() != "vMenu")
-                    {
-                        var InvalidNameException = new Exception("\r\n\r\n^1[vMenu] INSTALLATION ERROR!\r\nThe name of the resource is not valid. " +
-                            "Please change the folder name from '^3" + GetCurrentResourceName() + "^1' to '^2vMenu^1' (case sensitive) instead!\r\n\r\n\r\n^7");
-                        try
-                        {
-                            throw InvalidNameException;
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.Write(e.Message);
-                        }
-                    }
-                    else
-                    {
-                        // Add event handlers.
-                        EventHandlers.Add("vMenu:GetPlayerIdentifiers", new Action<int, NetworkCallbackDelegate>((TargetPlayer, CallbackFunction) =>
-                        {
-                            var data = new List<string>();
-                            Players[TargetPlayer].Identifiers.ToList().ForEach(e =>
-                            {
-                                if (!e.Contains("ip:"))
-                                {
-                                    data.Add(e);
-                                }
-                            });
-                            CallbackFunction(JsonConvert.SerializeObject(data));
-                        }));
-                        EventHandlers.Add("vMenu:RequestPermissions", new Action<Player>(PermissionsManager.SetPermissionsForPlayer));
-                        EventHandlers.Add("vMenu:RequestServerState", new Action<Player>(RequestServerStateFromPlayer));
-
-                        // check addons file for errors
-                        var addons = LoadResourceFile(GetCurrentResourceName(), "config/addons.json") ?? "{}";
-                        try
-                        {
-                            JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(addons);
-                            // If the above crashes, then the json is invalid and it'll throw warnings in the console.
-                        }
-                        catch (JsonReaderException ex)
-                        {
-                            Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your addons.json file contains a problem! Error details: {ex.Message}\n\n");
-                        }
-
-                        // check extras file for errors
-                        string vehname = LoadResourceFile(GetCurrentResourceName(), "config/vehname.json") ?? "{}";
-                        try
-                        {
-                            JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(vehname);
-                            // If the above crashes, then the json is invalid and it'll throw warnings in the console.
-                        }
-                        catch (JsonReaderException ex)
-                        {
-                            Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your vehname.json file contains a problem! Error details: {ex.Message}\n\n");
-                        }
-
-                        // check veh blips file for errors
-                        string vehblips = LoadResourceFile(GetCurrentResourceName(), "config/vehblips.json") ?? "{}";
-                        try
-                        {
-                            JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, int>>>(vehblips);
-                            // If the above crashes, then the json is invalid and it'll throw warnings in the console.
-                        }
-                        catch (JsonReaderException ex)
-                        {
-                            Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your vehblips.json file contains a problem! Error details: {ex.Message}\n\n");
-                        }
-
-                        // check extras file for errors
-                        string extras = LoadResourceFile(GetCurrentResourceName(), "config/extras.json") ?? "{}";
-                        try
-                        {
-                            JsonConvert.DeserializeObject<Dictionary<string, Dictionary<int, string>>>(extras);
-                            // If the above crashes, then the json is invalid and it'll throw warnings in the console.
-                        }
-                        catch (JsonReaderException ex)
-                        {
-                            Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your extras.json file contains a problem! Error details: {ex.Message}\n\n");
-                        }
-
-                        // check if permissions are setup (correctly)
-                        if (!GetSettingsBool(Setting.vmenu_use_permissions))
-                        {
-                            Debug.WriteLine("^3[vMenu] [WARNING] vMenu is set up to ignore permissions!\nIf you did this on purpose then you can ignore this warning.\nIf you did not set this on purpose, then you must have made a mistake while setting up vMenu.\nPlease read the vMenu documentation (^5https://docs.vespura.com/vmenu^3).\nMost likely you are not executing the permissions.cfg (correctly).^7");
-                        }
-
-                        Tick += PlayersFirstTick;
-
-                        // Start the loops
-                        if (GetSettingsBool(Setting.vmenu_enable_weather_sync))
-                        {
-                            Tick += WeatherLoop;
-                        }
-
-                        if (GetSettingsBool(Setting.vmenu_enable_time_sync))
-                        {
-                            Tick += TimeLoop;
-                        }
-                    }
+                    Debug.Write(e.Message);
                 }
             }
+            else
+            {
+                // Add event handlers.
+                EventHandlers.Add("vMenu:GetPlayerIdentifiers", new Action<int, NetworkCallbackDelegate>((TargetPlayer, CallbackFunction) =>
+                {
+                    var data = new List<string>();
+                    Players[TargetPlayer].Identifiers.ToList().ForEach(e =>
+                    {
+                        if (!e.Contains("ip:"))
+                        {
+                            data.Add(e);
+                        }
+                    });
+                    CallbackFunction(JsonConvert.SerializeObject(data));
+                }));
+                EventHandlers.Add("vMenu:RequestPermissions", new Action<Player>(PermissionsManager.SetPermissionsForPlayer));
+                EventHandlers.Add("vMenu:RequestServerState", new Action<Player>(RequestServerStateFromPlayer));
+
+                // check addons file for errors
+                var addons = LoadResourceFile(GetCurrentResourceName(), "config/addons.json") ?? "{}";
+                try
+                {
+                    JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(addons);
+                    // If the above crashes, then the json is invalid and it'll throw warnings in the console.
+                }
+                catch (JsonReaderException ex)
+                {
+                    Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your addons.json file contains a problem! Error details: {ex.Message}\n\n");
+                }
+
+                // check extras file for errors
+                string vehname = LoadResourceFile(GetCurrentResourceName(), "config/vehname.json") ?? "{}";
+                try
+                {
+                    JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(vehname);
+                    // If the above crashes, then the json is invalid and it'll throw warnings in the console.
+                }
+                catch (JsonReaderException ex)
+                {
+                    Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your vehname.json file contains a problem! Error details: {ex.Message}\n\n");
+                }
+
+                // check veh blips file for errors
+                string vehblips = LoadResourceFile(GetCurrentResourceName(), "config/vehblips.json") ?? "{}";
+                try
+                {
+                    JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, int>>>(vehblips);
+                    // If the above crashes, then the json is invalid and it'll throw warnings in the console.
+                }
+                catch (JsonReaderException ex)
+                {
+                    Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your vehblips.json file contains a problem! Error details: {ex.Message}\n\n");
+                }
+
+                // check extras file for errors
+                string extras = LoadResourceFile(GetCurrentResourceName(), "config/extras.json") ?? "{}";
+                try
+                {
+                    JsonConvert.DeserializeObject<Dictionary<string, Dictionary<int, string>>>(extras);
+                    // If the above crashes, then the json is invalid and it'll throw warnings in the console.
+                }
+                catch (JsonReaderException ex)
+                {
+                    Debug.WriteLine($"\n\n^1[vMenu] [ERROR] ^7Your extras.json file contains a problem! Error details: {ex.Message}\n\n");
+                }
+
+                // check if permissions are setup (correctly)
+                if (!GetSettingsBool(Setting.vmenu_use_permissions))
+                {
+                    Debug.WriteLine("^3[vMenu] [WARNING] vMenu is set up to ignore permissions!\nIf you did this on purpose then you can ignore this warning.\nIf you did not set this on purpose, then you must have made a mistake while setting up vMenu.\nPlease read the vMenu documentation (^5https://docs.vespura.com/vmenu^3).\nMost likely you are not executing the permissions.cfg (correctly).^7");
+                }
+
+                Tick += PlayersFirstTick;
+
+                // Start the loops
+                if (GetSettingsBool(Setting.vmenu_enable_weather_sync))
+                {
+                    Tick += WeatherLoop;
+                }
+
+                if (GetSettingsBool(Setting.vmenu_enable_time_sync))
+                {
+                    Tick += TimeLoop;
+                }
+            }
+        }
+    }
         }
         #endregion
 
@@ -594,13 +594,13 @@ namespace vMenuServer
         /// <param name="playerOwner"></param>
         [EventHandler("vMenu:DelAllVehServ")]
         public void DelAllVehServ([FromSource] Player source)
-        {
+        {     
             var vehdelnum = 0;
             foreach (int veh in GetAllVehicles())
             {
                 if (!IsPedAPlayer(GetPedInVehicleSeat(veh, -1)))
                 {
-                    vehdelnum++;
+                    vehdelnum ++;
                     DeleteEntity(veh);
                 }
             }
@@ -823,19 +823,19 @@ namespace vMenuServer
                     }
                     else
                     {
-                        CurrentHours++;
+                        CurrentHours ++;
                     }
                 }
                 else
                 {
-                    CurrentMinutes = CurrentMinutes + 5;
+                    CurrentMinutes=CurrentMinutes+5;
                 }
                 await Delay(0);
             }
             CurrentHours = newHours;
             CurrentMinutes = newMinutes;
             FreezeTime = freezeTimeNew;
-
+            
         }
         #endregion
 
@@ -861,7 +861,7 @@ namespace vMenuServer
                         TriggerEvent("vMenu:KickSuccessful", source.Name, kickReason, targetPlayer.Name);
 
                         KickLog($"Player: {source.Name} has kicked: {targetPlayer.Name} for: {kickReason}.");
-                        TriggerClientEvent(source, "vMenu:Notify", $"The target player (<C>{targetPlayer.Name}</C>) has been kicked.", "info");
+                        TriggerClientEvent( source,  "vMenu:Notify",  $"The target player (<C>{targetPlayer.Name}</C>) has been kicked.", "info");
 
                         // Kick the player from the server using the specified reason.
                         DropPlayer(targetPlayer.Handle, kickReason);
@@ -871,7 +871,7 @@ namespace vMenuServer
                     TriggerClientEvent(source, "vMenu:Notify", "Sorry, this player can ~r~not ~w~be kicked.", "info");
                     return;
                 }
-                TriggerClientEvent(source, "vMenu:Notify", "An unknown error occurred. Report it here: vespura.com/vmenu", "info");
+                TriggerClientEvent(source,  "vMenu:Notify", "An unknown error occurred. Report it here: vespura.com/vmenu", "info");
             }
             else
             {
@@ -897,7 +897,7 @@ namespace vMenuServer
                     TriggerClientEvent(player: targetPlayer, eventName: "vMenu:KillMe", args: source.Name);
                     return;
                 }
-                TriggerClientEvent(source, "vMenu:Notify", "An unknown error occurred. Report it here: vespura.com/vmenu", "info");
+                TriggerClientEvent( source, "vMenu:Notify", "An unknown error occurred. Report it here: vespura.com/vmenu", "info");
             }
             else
             {
@@ -923,7 +923,7 @@ namespace vMenuServer
                     TriggerClientEvent(player: targetPlayer, eventName: "vMenu:GoToPlayer", args: source.Handle);
                     return;
                 }
-                TriggerClientEvent(source, "vMenu:Notify", "An unknown error occurred. Report it here: vespura.com/vmenu", "info");
+                TriggerClientEvent( source, "vMenu:Notify", "An unknown error occurred. Report it here: vespura.com/vmenu", "info");
             }
             else
             {
@@ -1132,7 +1132,7 @@ namespace vMenuServer
             bool? reduceDriftSuspension = vehState["Set:ReduceDriftSuspension"] ?? false;
 
             vehEntity.State["Set:ReduceDriftSuspension"] = reduceDriftSuspension.Value ? false : true;
-            TriggerClientEvent("vMenu:SetDriftSuspension", vehNetId, vehEntity.State["Set:ReduceDriftSuspension"]);
+            TriggerClientEvent( "vMenu:SetDriftSuspension", vehNetId, vehEntity.State["Set:ReduceDriftSuspension"] );
         }
 
         #endregion
